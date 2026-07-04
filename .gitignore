@@ -1,0 +1,6 @@
+config.ini
+cron.log
+__pycache__/
+*.pyc
+files/
+.venv/
