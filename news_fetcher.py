@@ -145,6 +145,7 @@ async def fetch_all() -> list[dict]:
     raw = []
     for source in SOURCES:
         try:
+            weight = 15 if source.get("name") == "HackerNews" else 5
             if source["kind"] == "hn":
                 batch = await fetch_hn(source["limit"])
             elif source["kind"] == "rss":
@@ -158,6 +159,8 @@ async def fetch_all() -> list[dict]:
                     continue
                 if item["published_at"].astimezone(timezone.utc) < since:
                     continue
+                item = dict(item)
+                item["weight"] = weight
                 raw.append(item)
         except Exception as exc:
             logger.warning("Source fetch failed for %s: %s", source.get("name"), exc)
@@ -168,24 +171,24 @@ async def fetch_all() -> list[dict]:
     for k in by_source:
         by_source[k].sort(key=lambda x: x["published_at"], reverse=True)
 
-    # 保证每个来源至少保留一部分条目，避免单源垄断
     guaranteed = []
     used_ids = set()
     for src, items in by_source.items():
-        for item in items[: max(3, len(items) // 4)]:
+        quota = max(3, len(items) // 4)
+        for item in items[:quota]:
             if item["title"] not in used_ids:
                 guaranteed.append(item)
                 used_ids.add(item["title"])
 
     remaining = sorted(
         [item for item in raw if item["title"] not in used_ids],
-        key=lambda x: x["published_at"],
+        key=lambda x: (x.get("published_at") or datetime.min, x.get("weight", 0)),
         reverse=True,
-    )[: max(40, len(raw) // 3)]
+    )[:90]
 
     combined = guaranteed + remaining
     combined.sort(key=lambda x: x["published_at"], reverse=True)
-    return combined[:80]
+    return combined[:100]
 
 
 def format_items(items):
