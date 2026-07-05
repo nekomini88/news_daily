@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail
 
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 
@@ -12,8 +12,7 @@ echo "📰 开始生成 ${today} 每日新闻总结..."
 "/root/Horizon/.venv/bin/python3" "$BASE_DIR/horizon_news.py" > "$out_dir/news_${today}.txt"
 text_file="$out_dir/news_${today}.txt"
 
-echo "📺 发送 Telegram..."
-export PATH="$HOME/.local/bin:$PATH"
-hermes send --to "telegram:-1004493342362" --file "$text_file" || echo "❌ Telegram 发送失败"
+# 发送 Telegram，使用本项目的专用发送器
+"$BASE_DIR/send_tg_report.py" "$text_file"
 
 echo "🎉 每日新闻总结完成！"
