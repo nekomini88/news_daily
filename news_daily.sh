@@ -9,7 +9,7 @@ mkdir -p "$out_dir"
 
 echo "📰 开始生成 ${today} 每日新闻总结..."
 
-"/root/Horizon/.venv/bin/python3" "$BASE_DIR/horizon_news.py" > "$out_dir/news_${today}.txt"
+"/root/Horizon/.venv/bin/python3" "$BASE_DIR/news_fetcher.py" > "$out_dir/news_${today}.txt"
 text_file="$out_dir/news_${today}.txt"
 
 # 发送 Telegram，使用本项目的专用发送器

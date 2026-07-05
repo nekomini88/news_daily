@@ -74,6 +74,16 @@ def call_llm(prompt, api_key, max_tokens=4096):
     return result["choices"][0]["message"]["content"]
 
 
+NEWS_SOURCES = [
+    "hackernews",
+    "rss:Readhub",
+    "rss:BBC中文",
+    "rss:纽约时报中文网",
+    "github:nekomini88/stock_daily",
+    "github:nekomini88/anime_daily"
+]
+
+
 async def fetch_with_horizon():
     from src.storage.manager import StorageManager
     from src.orchestrator import HorizonOrchestrator
