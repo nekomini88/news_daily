@@ -180,7 +180,10 @@ async def fetch_all() -> list[dict]:
                 selected.append(item)
                 used_ids.add(item["title"])
     selected.sort(key=lambda x: x["published_at"], reverse=True)
-    return selected[:80]
+    # 让 HackerNews 始终排在前面，其他来源排在后面
+    hn_first = [it for it in selected if it.get("source") == "HackerNews"]
+    others = [it for it in selected if it.get("source") != "HackerNews"]
+    return hn_first + others
 
 
 def format_items(items):
