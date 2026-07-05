@@ -33,8 +33,8 @@ SOURCES = [
     {"name": "HackerNews", "kind": "hn", "limit": 20},
     {"name": "BBC中文", "kind": "rss", "url": "https://feeds.bbci.co.uk/zhongwen/simp/rss.xml", "limit": 15},
     {"name": "纽约时报中文网", "kind": "rss", "url": "https://cn.nytimes.com/rss/homepage.xml", "limit": 15},
-    {"name": "GitHub: nekomini88/stock_daily", "kind": "github_releases", "owner": "nekomini88", "repo": "stock_daily", "limit": 5},
-    {"name": "GitHub: nekomini88/anime_daily", "kind": "github_releases", "owner": "nekomini88", "repo": "anime_daily", "limit": 5},
+    {"name": "新浪科技", "kind": "rss", "url": "https://rss.sina.com.cn/news/allnews/tech.xml", "limit": 15},
+    {"name": "新浪体育", "kind": "rss", "url": "https://rss.sina.com.cn/news/allnews/sports.xml", "limit": 15},
 ]
 
 
