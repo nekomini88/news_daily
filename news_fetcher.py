@@ -145,7 +145,7 @@ async def fetch_all() -> list[dict]:
     raw = []
     for source in SOURCES:
         try:
-            weight = 15 if source.get("name") == "HackerNews" else 5
+            weight = 15 if source.get("name") == "HackerNews" else 3
             if source["kind"] == "hn":
                 batch = await fetch_hn(source["limit"])
             elif source["kind"] == "rss":
@@ -171,24 +171,16 @@ async def fetch_all() -> list[dict]:
     for k in by_source:
         by_source[k].sort(key=lambda x: x["published_at"], reverse=True)
 
-    guaranteed = []
+    selected = []
     used_ids = set()
     for src, items in by_source.items():
-        quota = max(3, len(items) // 4)
-        for item in items[:quota]:
+        current_cap = 15 if src == "HackerNews" else 3
+        for item in items[:current_cap]:
             if item["title"] not in used_ids:
-                guaranteed.append(item)
+                selected.append(item)
                 used_ids.add(item["title"])
-
-    remaining = sorted(
-        [item for item in raw if item["title"] not in used_ids],
-        key=lambda x: (x.get("published_at") or datetime.min, x.get("weight", 0)),
-        reverse=True,
-    )[:90]
-
-    combined = guaranteed + remaining
-    combined.sort(key=lambda x: x["published_at"], reverse=True)
-    return combined[:100]
+    selected.sort(key=lambda x: x["published_at"], reverse=True)
+    return selected[:80]
 
 
 def format_items(items):
