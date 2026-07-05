@@ -30,11 +30,16 @@ TZ8 = timezone(timedelta(hours=8))
 logger = logging.getLogger(__name__)
 
 SOURCES = [
-    {"name": "HackerNews", "kind": "hn", "limit": 20},
-    {"name": "BBC中文", "kind": "rss", "url": "https://feeds.bbci.co.uk/zhongwen/simp/rss.xml", "limit": 15},
-    {"name": "纽约时报中文网", "kind": "rss", "url": "https://cn.nytimes.com/rss/homepage.xml", "limit": 15},
-    {"name": "新浪科技", "kind": "rss", "url": "https://rss.sina.com.cn/news/allnews/tech.xml", "limit": 15},
-    {"name": "新浪体育", "kind": "rss", "url": "https://rss.sina.com.cn/news/allnews/sports.xml", "limit": 15},
+    {"name": "HackerNews", "kind": "hn", "limit": 24},
+    {"name": "BBC中文", "kind": "rss", "url": "https://feeds.bbci.co.uk/zhongwen/simp/rss.xml", "limit": 20},
+    {"name": "纽约时报中文网", "kind": "rss", "url": "https://cn.nytimes.com/rss/homepage.xml", "limit": 20},
+    {"name": "新浪科技", "kind": "rss", "url": "https://rss.sina.com.cn/news/allnews/tech.xml", "limit": 20},
+    {"name": "新浪体育", "kind": "rss", "url": "https://rss.sina.com.cn/news/allnews/sports.xml", "limit": 20},
+    {"name": "36氪", "kind": "rss", "url": "https://36kr.com/feed", "limit": 20},
+    {"name": "澎湃新闻", "kind": "rss", "url": "https://feedx.net/rss/thepaper.xml", "limit": 20},
+    {"name": "界面新闻", "kind": "rss", "url": "https://feedx.net/rss/jiemian.xml", "limit": 20},
+    {"name": "虎嗅", "kind": "rss", "url": "https://feedx.net/rss/huxiu.xml", "limit": 20},
+    {"name": "人民网国际", "kind": "rss", "url": "http://www.people.com.cn/rss/world.xml", "limit": 20},
 ]
 
 
@@ -137,7 +142,7 @@ async def fetch_github_releases(owner: str, repo: str, limit: int) -> list[dict]
 
 async def fetch_all() -> list[dict]:
     since = time_window()
-    items = []
+    raw = []
     for source in SOURCES:
         try:
             if source["kind"] == "hn":
@@ -149,13 +154,38 @@ async def fetch_all() -> list[dict]:
             else:
                 continue
             for item in batch:
-                if item.get("published_at") and item["published_at"].astimezone(timezone.utc) < since:
+                if not item.get("published_at"):
                     continue
-                items.append(item)
+                if item["published_at"].astimezone(timezone.utc) < since:
+                    continue
+                raw.append(item)
         except Exception as exc:
             logger.warning("Source fetch failed for %s: %s", source.get("name"), exc)
-    items.sort(key=lambda x: x.get("published_at") or datetime.min, reverse=True)
-    return items[:40]
+
+    by_source = {}
+    for item in raw:
+        by_source.setdefault(item["source"], []).append(item)
+    for k in by_source:
+        by_source[k].sort(key=lambda x: x["published_at"], reverse=True)
+
+    # 保证每个来源至少保留一部分条目，避免单源垄断
+    guaranteed = []
+    used_ids = set()
+    for src, items in by_source.items():
+        for item in items[: max(3, len(items) // 4)]:
+            if item["title"] not in used_ids:
+                guaranteed.append(item)
+                used_ids.add(item["title"])
+
+    remaining = sorted(
+        [item for item in raw if item["title"] not in used_ids],
+        key=lambda x: x["published_at"],
+        reverse=True,
+    )[: max(40, len(raw) // 3)]
+
+    combined = guaranteed + remaining
+    combined.sort(key=lambda x: x["published_at"], reverse=True)
+    return combined[:80]
 
 
 def format_items(items):
