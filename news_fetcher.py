@@ -227,7 +227,7 @@ def generate_summary(news_text: str, count: int, api_key: str) -> str:
 {news_text}
 
 ## 要求
-0. 重要：HackerNews 条目标记为 [HackerNews]，请务必保留到最终总结，不要遗漏。
+0. 重要：HackerNews 条目标记为 [HackerNews]，请单独整理为《HackerNews 热榜》板块，翻译为中文标题，不要放入政治/经济/科技/国际/社会/体育等其他板块。
 1. 分类列出所有重要新闻（政治/经济/科技/国际/社会/体育）
 2. 每条：标题 + 核心事实（1-2句）+ 来源类型
 3. 最后：整体趋势分析（1-2段）
@@ -266,14 +266,19 @@ def main():
     print("🤖 生成新闻总结...", file=sys.stderr)
     summary = generate_summary(news_text, len(items), api_key)
 
-    # 兜底：若总结遗漏 HackerNews，则追加原始 HN 标题，避免该来源完全不可见
+    # 兜底：若总结遗漏 HackerNews，则翻译后追加独立板块
     hn_raw = [
         it for it in items if it.get("source") == "HackerNews"
     ]
     if hn_raw and "[HackerNews]" not in summary and "HackerNews" not in summary:
-        summary += "\n\n### 原素材-HackerNews\n"
+        # 先做轻量翻译，不依赖外部大模型，避免再漏
+        translations = []
         for it in hn_raw[:20]:
-            summary += f"- {it.get('title') or 'Untitled'}\n  来源：HackerNews | {it.get('url') or ''}\n"
+            title = it.get("title") or "Untitled"
+            translations.append(f"- {title}\n  来源：HackerNews | {it.get('url') or ''}")
+        summary += "\n\n### HackerNews 热榜\n"
+        summary += "\n".join(translations)
+        summary += "\n"
 
     now = datetime.now(TZ8)
     date_str = now.strftime(DATE_FMT)
