@@ -266,19 +266,17 @@ def main():
     print("🤖 生成新闻总结...", file=sys.stderr)
     summary = generate_summary(news_text, len(items), api_key)
 
-    # 兜底：若总结遗漏 HackerNews，则翻译后追加独立板块
+    # 始终为 HackerNews 保留独立板块，并展示最多 15 条
     hn_raw = [
         it for it in items if it.get("source") == "HackerNews"
     ]
-    if hn_raw and "[HackerNews]" not in summary and "HackerNews" not in summary:
-        # 先做轻量翻译，不依赖外部大模型，避免再漏
-        translations = []
-        for it in hn_raw[:20]:
+    if hn_raw:
+        section = "\n\n### HackerNews 热榜\n"
+        for it in hn_raw[:15]:
             title = it.get("title") or "Untitled"
-            translations.append(f"- {title}\n  来源：HackerNews | {it.get('url') or ''}")
-        summary += "\n\n### HackerNews 热榜\n"
-        summary += "\n".join(translations)
-        summary += "\n"
+            section += f"- {title}\n  来源：HackerNews | {it.get('url') or ''}\n"
+        if section not in summary:
+            summary = summary.rstrip() + section
 
     now = datetime.now(TZ8)
     date_str = now.strftime(DATE_FMT)
