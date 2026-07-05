@@ -204,7 +204,7 @@ def call_llm(prompt: str, api_key: str, max_tokens: int = 4096) -> str:
             {"role": "user", "content": prompt},
         ],
         "max_tokens": max_tokens,
-        "temperature": 0.3,
+        "temperature": 0.2,
     }).encode()
 
     req = urllib.request.Request(
@@ -218,7 +218,6 @@ def call_llm(prompt: str, api_key: str, max_tokens: int = 4096) -> str:
     with urllib.request.urlopen(req, timeout=240) as resp:
         result = json.loads(resp.read())
     return result["choices"][0]["message"]["content"]
-
 
 def generate_summary(news_text: str, count: int, api_key: str) -> str:
     prompt = f"""请根据以下新闻素材，整理为中文新闻总结。
@@ -238,6 +237,73 @@ def generate_summary(news_text: str, count: int, api_key: str) -> str:
 请开始总结：
 """
     return call_llm(prompt, api_key)
+
+
+
+async def translate_titles(items: list[dict]) -> list[tuple[str, dict]]:
+    api_key = None
+    env_path = Path(__file__).resolve().parent / ".env"
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+            if line.startswith("OPENROUTER_API_KEY="):
+                api_key = line.split("=", 1)[1].strip()
+                break
+    if not api_key:
+        env = Path.home() / ".hermes" / ".env"
+        if env.exists():
+            for line in env.read_text(encoding="utf-8", errors="ignore").splitlines():
+                if line.startswith("OPENROUTER_API_KEY="):
+                    api_key = line.split("=", 1)[1].strip()
+                    break
+    if not api_key:
+        return [(it.get("title") or "Untitled", it) for it in items]
+
+    pairs = "\n".join([f"{i+1}. {it.get('title','')}" for i, it in enumerate(items)])
+    prompt = f"""把以下 HackerNews 英文标题翻译成中文标题。规则：
+- 只输出中文标题
+- 保留编号格式 1. ... 2. ...
+- 不要输出原文，不要加任何 English remainder
+- 每条一行
+
+{pairs}
+
+输出示例：
+1. 微信取代邮件成为主流办公沟通工具
+2. 美联储服软暗示年内降息
+"""
+    try:
+        data = json.dumps({
+            "model": "openai/gpt-4o-mini",
+            "messages": [
+                {"role": "user", "content": prompt},
+            ],
+            "max_tokens": 1200,
+            "temperature": 0.2,
+        }).encode()
+        req = urllib.request.Request(
+            "https://openrouter.ai/api/v1/chat/completions",
+            data=data,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            result = json.loads(resp.read())
+        content = result["choices"][0]["message"]["content"]
+        out = []
+        for line in content.splitlines():
+            line = line.strip()
+            if not line or not line[0].isdigit():
+                continue
+            title = line.split(".", 1)[1].strip() if "." in line else line
+            out.append((title, items[len(out)]))
+        if len(out) == len(items):
+            return out
+    except Exception as exc:
+        print(f"翻译失败: {exc}", file=sys.stderr)
+    return [(it.get("title") or "Untitled", it) for it in items]
+
 
 
 def main():
@@ -272,9 +338,9 @@ def main():
     ]
     if hn_raw:
         section = "\n\n### HackerNews 热榜\n"
-        for it in hn_raw[:15]:
-            title = it.get("title") or "Untitled"
-            section += f"- {title}\n  来源：HackerNews | {it.get('url') or ''}\n"
+        translated = asyncio.run(translate_titles(hn_raw[:15]))
+        for cn, it in translated:
+            section += f"- {cn}\n  来源：HackerNews | {it.get('url') or ''}\n"
         if section not in summary:
             summary = summary.rstrip() + section
 
